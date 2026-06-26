@@ -10,6 +10,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://rakibbfadu_db_user
 
 app.use(express.json());
 let qrCodeData = '';
+let isClientReady = false; // সার্ভার রেডি কি না তা ট্র্যাক করার ভ্যারিয়েবল
 
 mongoose.connect(MONGODB_URI).then(() => {
     console.log('MongoDB Connected successfully!');
@@ -21,7 +22,16 @@ mongoose.connect(MONGODB_URI).then(() => {
             backupSyncIntervalMs: 300000
         }),
         puppeteer: {
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+            // Render এর ফ্রি র‍্যাম বাঁচানোর জন্য এক্সট্রা কিছু কমান্ড যুক্ত করা হলো
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu'
+            ]
         }
     });
 
@@ -33,6 +43,12 @@ mongoose.connect(MONGODB_URI).then(() => {
     client.on('ready', () => {
         console.log('WhatsApp Client is ready!');
         qrCodeData = ''; 
+        isClientReady = true; // ক্লায়েন্ট রেডি হলে ফ্ল্যাগটি true হবে
+    });
+
+    client.on('disconnected', (reason) => {
+        console.log('Client was logged out', reason);
+        isClientReady = false;
     });
 
     client.on('remote_session_saved', () => {
@@ -41,7 +57,6 @@ mongoose.connect(MONGODB_URI).then(() => {
 
     client.initialize();
 
-    // 100% গ্যারান্টিড Text ভিত্তিক পেজ
     app.get('/qr', (req, res) => {
         res.setHeader('Content-Type', 'text/html');
         if (qrCodeData) {
@@ -60,7 +75,16 @@ mongoose.connect(MONGODB_URI).then(() => {
         }
     });
 
+    // মেইন API রাউট
     app.get('/check-number/:phone', async (req, res) => {
+        // সার্ভার রেডি না থাকলে আগেই মেসেজ দিয়ে দেবে, ৩ মিনিট ঘুরাবে না
+        if (!isClientReady) {
+            return res.json({ 
+                success: false, 
+                error: 'সার্ভার এখনও রেডি হয়নি! Render-এর লগে "WhatsApp Client is ready!" লেখা আসা পর্যন্ত অপেক্ষা করুন।' 
+            });
+        }
+
         let phone = req.params.phone;
         if(phone.startsWith('01')) phone = '88' + phone;
         const formattedNumber = `${phone}@c.us`;
@@ -69,7 +93,8 @@ mongoose.connect(MONGODB_URI).then(() => {
             const isRegistered = await client.isRegisteredUser(formattedNumber);
             res.json({ success: true, phone: phone, has_whatsapp: isRegistered });
         } catch (error) {
-            res.status(500).json({ success: false, error: 'Failed to check number' });
+            console.error('Error checking number:', error);
+            res.json({ success: false, error: 'API Error: ' + error.message }); // আসল এররটি এখানে দেখাবে
         }
     });
 
