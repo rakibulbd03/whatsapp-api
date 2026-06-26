@@ -11,7 +11,6 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://rakibbfadu_db_user
 
 app.use(express.json());
 
-// QR কোড সেভ রাখার ভ্যারিয়েবল
 let qrCodeData = '';
 
 mongoose.connect(MONGODB_URI).then(() => {
@@ -29,7 +28,7 @@ mongoose.connect(MONGODB_URI).then(() => {
     });
 
     client.on('qr', (qr) => {
-        qrCodeData = qr; // ওয়েবপেজে দেখানোর জন্য ডাটা সেভ রাখা হচ্ছে
+        qrCodeData = qr; 
         qrcode.generate(qr, { small: true }); 
         console.log('QR Code রেডি! ব্রাউজারে /qr লিংকে গিয়ে স্ক্যান করুন।');
     });
@@ -45,25 +44,43 @@ mongoose.connect(MONGODB_URI).then(() => {
 
     client.initialize();
 
-    // ওয়েবপেজে ফ্রেশ QR কোড দেখানোর API
+    // ওয়েবপেজে ফ্রেশ QR কোড দেখানোর আপডেট API
     app.get('/qr', (req, res) => {
+        res.setHeader('Content-Type', 'text/html');
         if (qrCodeData) {
+            // 외부 API দিয়ে সরাসরি ইমেজ জেনারেট করা হচ্ছে
+            const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeData)}`;
             res.send(`
                 
-                    WhatsApp QR
+                
+                    
+                        WhatsApp QR
+                        
+                        
+                    
                     
                         
-                            WhatsApp API QR Code
-                            আপনার ফোনের WhatsApp দিয়ে এটি স্ক্যান করুন
-                            
-                            
+                            WhatsApp Connection
+                            আপনার ফোনের WhatsApp দিয়ে নিচের QR কোডটি স্ক্যান করুন
                             
                         
                     
                 
             `);
         } else {
-            res.send('QR Code is not ready or already connected!');
+            res.send(`
+                
+                
+                    
+                        Status
+                        
+                    
+                    
+                        QR Code এখনও তৈরি হয়নি বা ইতিমধ্যে স্ক্যান হয়ে গেছে!
+                        Render এর লগ (Logs) চেক করুন অথবা পেজটি কিছুক্ষণ পর রিলোড (Refresh) করুন।
+                    
+                
+            `);
         }
     });
 
