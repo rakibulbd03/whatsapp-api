@@ -20,8 +20,9 @@ mongoose.connect(MONGODB_URI).then(() => {
             store: store,
             backupSyncIntervalMs: 300000
         }),
-        authTimeoutMs: 120000, // টাইম-আউট বাড়িয়ে ২ মিনিট করা হলো
+        authTimeoutMs: 120000, 
         puppeteer: {
+            // মেমরি সেভিংয়ের জন্য এক্সট্রা কমান্ড
             args: [
                 '--no-sandbox', 
                 '--disable-setuid-sandbox',
@@ -29,6 +30,7 @@ mongoose.connect(MONGODB_URI).then(() => {
                 '--disable-accelerated-2d-canvas',
                 '--no-first-run',
                 '--no-zygote',
+                '--single-process', // র‍্যাম বাঁচানোর সবচেয়ে জরুরি কমান্ড
                 '--disable-gpu',
                 '--disable-software-rasterizer'
             ],
@@ -41,13 +43,11 @@ mongoose.connect(MONGODB_URI).then(() => {
         console.log('QR Code Text Ready! Go to /qr to copy it.');
     });
 
-    // নতুন: স্ক্যান সফল হয়েছে কিনা তা সাথে সাথে জানাবে
     client.on('authenticated', () => {
         console.log('Authentication Successful! Downloading chats... Please wait.');
-        qrCodeData = ''; // স্ক্যান হয়ে গেলে QR মুছে ফেলবে
+        qrCodeData = ''; 
     });
 
-    // নতুন: ব্যাকগ্রাউন্ডে পার্সেন্টেজ কতদূর এগোলো তা লাইভ দেখাবে
     client.on('loading_screen', (percent, message) => {
         console.log(`LOADING SCREEN: ${percent}% - ${message}`);
     });
@@ -75,25 +75,19 @@ mongoose.connect(MONGODB_URI).then(() => {
                 <div style="max-width: 800px; margin: 50px auto; font-family: Arial; text-align: center; background: #f9f9f9; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
                     <h2 style="color: #d93025;">ধাপ ১: নিচের বক্সে থাকা সম্পূর্ণ লেখাটি (Text) কপি করুন</h2>
                     <textarea style="width: 100%; height: 150px; font-size: 14px; padding: 10px; border: 2px solid #ccc; border-radius: 5px;" onclick="this.select()">${qrCodeData}</textarea>
-                    
                     <h2 style="color: #1a73e8; margin-top: 30px;">ধাপ ২: QR কোড জেনারেট করে স্ক্যান করুন</h2>
                     <p style="font-size: 16px;">এবার <a href="https://www.the-qrcode-generator.com/" target="_blank" style="color: white; background: #1a73e8; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">এখানে ক্লিক করে</a> QR Generator ওয়েবসাইটে যান।</p>
-                    <p style="font-size: 16px; color: #555;">সেখানে <b>Free Text</b> অপশন সিলেক্ট করে কপি করা লেখাটি পেস্ট করুন। ডানপাশে যে নিখুঁত QR কোডটি আসবে, দ্রুত আপনার ফোন দিয়ে সেটি স্ক্যান করুন!</p>
                 </div>
             `);
         } else {
-            res.send('<h2 style="text-align:center; padding-top: 50px; font-family: Arial;">QR Code এখনও তৈরি হয়নি অথবা কানেক্ট হয়ে গেছে। Render-এর লগ চেক করুন।</h2>');
+            res.send('<h2 style="text-align:center; padding-top: 50px; font-family: Arial;">QR Code এখনও তৈরি হয়নি অথবা কানেক্ট হয়ে গেছে।</h2>');
         }
     });
 
     app.get('/check-number/:phone', async (req, res) => {
         if (!isClientReady) {
-            return res.json({ 
-                success: false, 
-                error: 'সার্ভার এখনও রেডি হয়নি! Render-এর লগে "WhatsApp Client is ready!" লেখা আসা পর্যন্ত অপেক্ষা করুন।' 
-            });
+            return res.json({ success: false, error: 'সার্ভার এখনও রেডি হয়নি!' });
         }
-
         let phone = req.params.phone;
         if(phone.startsWith('01')) phone = '88' + phone;
         const formattedNumber = `${phone}@c.us`;
@@ -102,7 +96,6 @@ mongoose.connect(MONGODB_URI).then(() => {
             const isRegistered = await client.isRegisteredUser(formattedNumber);
             res.json({ success: true, phone: phone, has_whatsapp: isRegistered });
         } catch (error) {
-            console.error('Error checking number:', error);
             res.json({ success: false, error: 'API Error: ' + error.message });
         }
     });
