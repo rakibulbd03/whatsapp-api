@@ -5,12 +5,11 @@ const mongoose = require('mongoose');
 
 const app = express();
 const port = process.env.PORT || 3000;
-
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://rakibbfadu_db_user:Woirfl3WQh6DFAUp@cluster0.g9ciz0r.mongodb.net/?appName=Cluster0';
 
 app.use(express.json());
 let qrCodeData = '';
-let isClientReady = false; // সার্ভার রেডি কি না তা ট্র্যাক করার ভ্যারিয়েবল
+let isClientReady = false;
 
 mongoose.connect(MONGODB_URI).then(() => {
     console.log('MongoDB Connected successfully!');
@@ -21,8 +20,8 @@ mongoose.connect(MONGODB_URI).then(() => {
             store: store,
             backupSyncIntervalMs: 300000
         }),
+        authTimeoutMs: 120000, // টাইম-আউট বাড়িয়ে ২ মিনিট করা হলো
         puppeteer: {
-            // Render এর ফ্রি র‍্যাম বাঁচানোর জন্য এক্সট্রা কিছু কমান্ড যুক্ত করা হলো
             args: [
                 '--no-sandbox', 
                 '--disable-setuid-sandbox',
@@ -30,8 +29,10 @@ mongoose.connect(MONGODB_URI).then(() => {
                 '--disable-accelerated-2d-canvas',
                 '--no-first-run',
                 '--no-zygote',
-                '--disable-gpu'
-            ]
+                '--disable-gpu',
+                '--disable-software-rasterizer'
+            ],
+            timeout: 120000
         }
     });
 
@@ -40,10 +41,20 @@ mongoose.connect(MONGODB_URI).then(() => {
         console.log('QR Code Text Ready! Go to /qr to copy it.');
     });
 
+    // নতুন: স্ক্যান সফল হয়েছে কিনা তা সাথে সাথে জানাবে
+    client.on('authenticated', () => {
+        console.log('Authentication Successful! Downloading chats... Please wait.');
+        qrCodeData = ''; // স্ক্যান হয়ে গেলে QR মুছে ফেলবে
+    });
+
+    // নতুন: ব্যাকগ্রাউন্ডে পার্সেন্টেজ কতদূর এগোলো তা লাইভ দেখাবে
+    client.on('loading_screen', (percent, message) => {
+        console.log(`LOADING SCREEN: ${percent}% - ${message}`);
+    });
+
     client.on('ready', () => {
         console.log('WhatsApp Client is ready!');
-        qrCodeData = ''; 
-        isClientReady = true; // ক্লায়েন্ট রেডি হলে ফ্ল্যাগটি true হবে
+        isClientReady = true; 
     });
 
     client.on('disconnected', (reason) => {
@@ -75,9 +86,7 @@ mongoose.connect(MONGODB_URI).then(() => {
         }
     });
 
-    // মেইন API রাউট
     app.get('/check-number/:phone', async (req, res) => {
-        // সার্ভার রেডি না থাকলে আগেই মেসেজ দিয়ে দেবে, ৩ মিনিট ঘুরাবে না
         if (!isClientReady) {
             return res.json({ 
                 success: false, 
@@ -94,7 +103,7 @@ mongoose.connect(MONGODB_URI).then(() => {
             res.json({ success: true, phone: phone, has_whatsapp: isRegistered });
         } catch (error) {
             console.error('Error checking number:', error);
-            res.json({ success: false, error: 'API Error: ' + error.message }); // আসল এররটি এখানে দেখাবে
+            res.json({ success: false, error: 'API Error: ' + error.message });
         }
     });
 
