@@ -11,6 +11,9 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://rakibbfadu_db_user
 
 app.use(express.json());
 
+// QR কোড সেভ রাখার ভ্যারিয়েবল
+let qrCodeData = '';
+
 mongoose.connect(MONGODB_URI).then(() => {
     console.log('MongoDB Connected successfully!');
     const store = new MongoStore({ mongoose: mongoose });
@@ -26,12 +29,14 @@ mongoose.connect(MONGODB_URI).then(() => {
     });
 
     client.on('qr', (qr) => {
-        qrcode.generate(qr, { small: true });
-        console.log('আপনার ফোনের WhatsApp থেকে এই QR Code টি স্ক্যান করুন!');
+        qrCodeData = qr; // ওয়েবপেজে দেখানোর জন্য ডাটা সেভ রাখা হচ্ছে
+        qrcode.generate(qr, { small: true }); 
+        console.log('QR Code রেডি! ব্রাউজারে /qr লিংকে গিয়ে স্ক্যান করুন।');
     });
 
     client.on('ready', () => {
         console.log('WhatsApp Client is ready!');
+        qrCodeData = ''; // কানেক্ট হলে কোড মুছে ফেলবে
     });
 
     client.on('remote_session_saved', () => {
@@ -39,6 +44,28 @@ mongoose.connect(MONGODB_URI).then(() => {
     });
 
     client.initialize();
+
+    // ওয়েবপেজে ফ্রেশ QR কোড দেখানোর API
+    app.get('/qr', (req, res) => {
+        if (qrCodeData) {
+            res.send(`
+                
+                    WhatsApp QR
+                    
+                        
+                            WhatsApp API QR Code
+                            আপনার ফোনের WhatsApp দিয়ে এটি স্ক্যান করুন
+                            
+                            
+                            
+                        
+                    
+                
+            `);
+        } else {
+            res.send('QR Code is not ready or already connected!');
+        }
+    });
 
     app.get('/check-number/:phone', async (req, res) => {
         let phone = req.params.phone;
