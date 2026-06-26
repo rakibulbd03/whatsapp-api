@@ -7,7 +7,6 @@ const qrcode = require('qrcode-terminal');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// আপনার দেওয়া MongoDB কানেকশন স্ট্রিংটি এখানে বসানো হয়েছে
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://rakibbfadu_db_user:Woirfl3WQh6DFAUp@cluster0.g9ciz0r.mongodb.net/?appName=Cluster0';
 
 app.use(express.json());
@@ -22,10 +21,7 @@ mongoose.connect(MONGODB_URI).then(() => {
             backupSyncIntervalMs: 300000
         }),
         puppeteer: {
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-            executablePath: process.env.NODE_ENV === 'production' 
-                ? '/usr/bin/google-chrome' 
-                : undefined 
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
         }
     });
 
@@ -44,7 +40,6 @@ mongoose.connect(MONGODB_URI).then(() => {
 
     client.initialize();
 
-    // নম্বর চেক করার API
     app.get('/check-number/:phone', async (req, res) => {
         let phone = req.params.phone;
         if(phone.startsWith('01')) {
