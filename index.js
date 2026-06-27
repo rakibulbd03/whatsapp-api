@@ -2,11 +2,13 @@ const { default: makeWASocket, DisconnectReason, BufferJSON, initAuthCreds } = r
 const pino = require('pino');
 const mongoose = require('mongoose');
 const express = require('express');
+const cors = require('cors'); // <-- ব্রাউজার সিকিউরিটি ফিক্স করার জন্য এটি যুক্ত করা হলো
 
 const app = express();
 const port = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://rakibbfadu_db_user:Woirfl3WQh6DFAUp@cluster0.g9ciz0r.mongodb.net/?appName=Cluster0';
 
+app.use(cors()); // <-- লারাভেল সাইটকে পারমিশন দেওয়ার জন্য এটি যুক্ত করা হলো
 app.use(express.json());
 
 let sock = null;
@@ -125,16 +127,16 @@ app.get('/qr', (req, res) => {
             </div>
         `);
     } else if (isClientReady) {
-        res.send('<h2 style="text-align:center; padding-top: 50px; font-family: Arial; color: green;">WhatsApp ইতিমধ্যে সফলভাবে কানেক্ট হয়ে আছে!</h2>');
+        res.send('<h2 style="text-align:center; padding-top: 50px; font-family: Arial; color: green;">WhatsApp ইতিমধ্যে সফলভাবে কানেক্ট হয়ে আছে!</h2>');
     } else {
-        res.send('<h2 style="text-align:center; padding-top: 50px; font-family: Arial;">QR Code এখনও তৈরি হয়নি, পেজটি কিছুক্ষণ পর রিফ্রেশ করুন।</h2>');
+        res.send('<h2 style="text-align:center; padding-top: 50px; font-family: Arial;">QR Code এখনও তৈরি হয়নি, পেজটি কিছুক্ষণ পর রিফ্রেশ করুন।</h2>');
     }
 });
 
 // নম্বর চেক করার মেইন API (লারাভেলের জন্য)
 app.get('/check-number/:phone', async (req, res) => {
     if (!isClientReady || !sock) {
-        return res.json({ success: false, error: 'সার্ভার এখনও রেডি হয়নি! লগে "WhatsApp Client is ready!" আসা পর্যন্ত অপেক্ষা করুন।' });
+        return res.json({ success: false, error: 'সার্ভার এখনও রেডি হয়নি! লগে "WhatsApp Client is ready!" আসা পর্যন্ত অপেক্ষা করুন।' });
     }
 
     let phone = req.params.phone.replace(/[^0-9]/g, '');

@@ -12,6 +12,7 @@
   "type": "commonjs",
   "dependencies": {
     "@whiskeysockets/baileys": "^7.0.0-rc13",
+    "cors": "^2.8.6",
     "express": "^5.2.1",
     "mongoose": "^9.7.3",
     "pino": "^10.3.1",
