@@ -1,14 +1,14 @@
-const { default: makeWASocket, DisconnectReason, BufferJSON, initAuthCreds } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, DisconnectReason, BufferJSON, initAuthCreds, Browsers } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const mongoose = require('mongoose');
 const express = require('express');
-const cors = require('cors'); // <-- ব্রাউজার সিকিউরিটি ফিক্স করার জন্য এটি যুক্ত করা হলো
+const cors = require('cors');
 
 const app = express();
 const port = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://rakibbfadu_db_user:Woirfl3WQh6DFAUp@cluster0.g9ciz0r.mongodb.net/?appName=Cluster0';
 
-app.use(cors()); // <-- লারাভেল সাইটকে পারমিশন দেওয়ার জন্য এটি যুক্ত করা হলো
+app.use(cors());
 app.use(express.json());
 
 let sock = null;
@@ -85,7 +85,8 @@ async function connectToWhatsApp() {
         auth: state,
         printQRInTerminal: true,
         logger: pino({ level: 'silent' }), // বাড়তি লগ বন্ধ করে র‍্যাম বাঁচাবে
-        browser: ['Khulna Design & Print', 'Chrome', '1.0.0']
+        browser: Browsers.macOS('Desktop'), // <-- এটি একদম অরিজিনাল ব্রাউজারের মতো কাজ করবে
+        syncFullHistory: false // <-- এটি হোয়াটসঅ্যাপের সন্দেহ কমাবে
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -100,10 +101,23 @@ async function connectToWhatsApp() {
 
         if (connection === 'close') {
             isClientReady = false;
-            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('Connection closed due to ', lastDisconnect.error, ', reconnecting: ', shouldReconnect);
+            const statusCode = lastDisconnect.error?.output?.statusCode;
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+            
+            console.log('Connection closed due to:', lastDisconnect.error?.message, ', Reconnecting:', shouldReconnect);
+            
             if (shouldReconnect) {
+                // নেটওয়ার্ক প্রবলেম হলে আবার ট্রাই করবে
                 connectToWhatsApp();
+            } else {
+                // 401 Unauthorized (Log out) হলে ডাটাবেজ ডিলিট করে নতুন কিউআর বানাবে
+                console.log('Session logged out or device removed! Clearing old session from MongoDB...');
+                AuthModel.deleteMany({}).then(() => {
+                    console.log('Old session deleted successfully! Generating new QR Code...');
+                    connectToWhatsApp();
+                }).catch(err => {
+                    console.error('Error deleting session:', err);
+                });
             }
         } else if (connection === 'open') {
             qrCodeData = '';
@@ -157,7 +171,7 @@ app.get('/check-number/:phone', async (req, res) => {
     }
 });
 
-// নতুন: সরাসরি মেসেজ সেন্ড করার API (লারাভেলের চ্যাটবক্সের জন্য)
+// সরাসরি মেসেজ সেন্ড করার API
 app.post('/send-message', async (req, res) => {
     if (!isClientReady || !sock) {
         return res.json({ success: false, error: 'সার্ভার এখনও রেডি হয়নি!' });
@@ -165,7 +179,7 @@ app.post('/send-message', async (req, res) => {
 
     const { phone, message } = req.body;
     if (!phone || !message) {
-        return res.json({ success: false, error: 'ফোন নম্বর অথবা মেসেজ দেওয়া হয়নি।' });
+        return res.json({ success: false, error: 'ফোন নম্বর অথবা মেসেজ দেওয়া হয়নি।' });
     }
 
     let formattedPhone = phone.replace(/[^0-9]/g, '');
