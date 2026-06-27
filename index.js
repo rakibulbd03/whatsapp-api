@@ -8,7 +8,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://rakibbfadu_db_user:Woirfl3WQh6DFAUp@cluster0.g9ciz0r.mongodb.net/?appName=Cluster0';
 
-app.use(cors()); // <-- লারাভেল সাইটকে পারমিশন দেওয়ার জন্য এটি যুক্ত করা হলো
+app.use(cors()); // <-- লারাভেল সাইটকে পারমিশন দেওয়ার জন্য এটি যুক্ত করা হলো
 app.use(express.json());
 
 let sock = null;
@@ -154,6 +154,32 @@ app.get('/check-number/:phone', async (req, res) => {
         }
     } catch (error) {
         res.json({ success: false, error: 'API Error: ' + error.message });
+    }
+});
+
+// নতুন: সরাসরি মেসেজ সেন্ড করার API (লারাভেলের চ্যাটবক্সের জন্য)
+app.post('/send-message', async (req, res) => {
+    if (!isClientReady || !sock) {
+        return res.json({ success: false, error: 'সার্ভার এখনও রেডি হয়নি!' });
+    }
+
+    const { phone, message } = req.body;
+    if (!phone || !message) {
+        return res.json({ success: false, error: 'ফোন নম্বর অথবা মেসেজ দেওয়া হয়নি।' });
+    }
+
+    let formattedPhone = phone.replace(/[^0-9]/g, '');
+    if (formattedPhone.startsWith('01')) {
+        formattedPhone = '88' + formattedPhone;
+    }
+    const jid = formattedPhone + '@s.whatsapp.net';
+
+    try {
+        await sock.sendMessage(jid, { text: message });
+        res.json({ success: true, message: 'Message sent successfully.' });
+    } catch (error) {
+        console.error('Send message error:', error);
+        res.json({ success: false, error: error.message });
     }
 });
 
